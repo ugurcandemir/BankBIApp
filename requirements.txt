@@ -1,0 +1,11 @@
+streamlit
+Pillow
+pandas
+numpy
+plotly
+fpdf
+markdown2
+beautifulsoup4
+pydeck
+joblib
+openpyxl
