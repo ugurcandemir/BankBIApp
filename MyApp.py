@@ -1,3 +1,5 @@
+# We are creating a Streamlit application for Akbank's Bank Analysis Platform.
+# Import necessary libraries.
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -14,6 +16,7 @@ import tempfile
 import pydeck as pdk
 import joblib
 
+# Set the page title, layout and other configurations.
 
 # Set page config
 st.set_page_config(page_title="Akbank Banka Analiz Platformu", layout="wide")
@@ -63,6 +66,10 @@ with col2:
         unsafe_allow_html=True
     )
 
+
+# We are writing the functionality of the application in the main section.
+# The logic of the application is divided into different sections, each with its own functionality.
+
 # 🧩 Function Definitions (Stubs — fill in later)
 def run_financial_tables():
     st.subheader("📊 Finansal Tablolar")
@@ -87,10 +94,100 @@ def run_trend_analysis():
 def run_ratio_analysis_dashboard():
     st.subheader("📈 Rasyo Analizi")
     st.write("Rasyo analizlerinin gösterileceği alan.")
-
+    
+# 📝 Report builder module (modularized)
 def run_report_builder():
+
     st.subheader("📝 Raporum")
     st.write("Rapor oluşturma alanı.")
+
+
+    if "reports" not in st.session_state:
+        st.session_state["reports"] = {}
+
+    if "current_report" not in st.session_state:
+        st.session_state["current_report"] = None
+
+    # Create new report
+    st.markdown("### 📄 Yeni Rapor Oluştur")
+    new_report_name = st.text_input("Rapor Adı Girin", "")
+    if st.button("Raporu Oluştur") and new_report_name:
+        if new_report_name not in st.session_state["reports"]:
+            st.session_state["reports"][new_report_name] = {
+                "markdown": "",
+                "charts": []
+            }
+            st.session_state["current_report"] = new_report_name
+
+    report_names = list(st.session_state["reports"].keys())
+
+    if report_names:
+        selected = st.selectbox(
+            "Rapor Seç", 
+            report_names, 
+            index=report_names.index(st.session_state["current_report"]) 
+            if st.session_state["current_report"] in report_names 
+            else 0
+        )
+        st.session_state["current_report"] = selected
+        report = st.session_state["reports"][selected]
+
+        st.markdown("### ✍️ Rapor İçeriği")
+        report["markdown"] = st.text_area("Markdown İçeriği", value=report["markdown"], height=200)
+
+        st.markdown("### 📊 Eklenmiş Grafikler")
+        for i, fig in enumerate(report["charts"]):
+            st.plotly_chart(fig, use_container_width=True)
+
+        if st.button("PDF Olarak İndir"):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.set_font("Arial", size=12)
+
+            html = markdown(report["markdown"])
+            soup = BeautifulSoup(html, "html.parser")
+
+            for element in soup.find_all():
+                if element.name == "h1":
+                    pdf.set_font("Arial", "B", 16)
+                    pdf.cell(0, 10, element.text, ln=True)
+                elif element.name == "h2":
+                    pdf.set_font("Arial", "B", 14)
+                    pdf.cell(0, 10, element.text, ln=True)
+                elif element.name == "li":
+                    pdf.set_font("Arial", size=12)
+                    pdf.cell(0, 10, f"- {element.text}", ln=True)
+                elif element.name == "p":
+                    pdf.set_font("Arial", size=12)
+                    pdf.multi_cell(0, 10, element.text)
+                pdf.ln(2)
+
+            # Save charts as PNG images and insert
+            with tempfile.TemporaryDirectory() as tmpdir:
+                for i, fig in enumerate(report["charts"]):
+                    image_path = os.path.join(tmpdir, f"chart_{i}.png")
+                    try:
+                        fig.update_layout(
+                            template="plotly",
+                            paper_bgcolor="white",
+                            plot_bgcolor="white"
+                        )
+                        fig.write_image(image_path, format="png")
+                        pdf.image(image_path, w=180)
+                        pdf.ln(5)
+                    except Exception as e:
+                        st.warning(f"Grafik {i+1} PDF'e eklenemedi: {e}")
+
+            pdf_output = pdf.output(dest="S").encode("latin-1")
+            buffer = BytesIO(pdf_output)
+            b64 = base64.b64encode(buffer.read()).decode()
+            href = f'<a href="data:application/octet-stream;base64,{b64}" download="{selected}.pdf">📥 PDF\'i İndir</a>'
+            st.markdown(href, unsafe_allow_html=True)
+
+    else:
+        st.info("Henüz oluşturulmuş bir rapor yok.")
+
 
 def run_customer_segmentation():
     st.subheader("💳 Müşteri Segmentasyonu")
@@ -123,6 +220,11 @@ def run_akbilmis_ai_assistant():
 def run_macro_dashboard():
     st.subheader("📉 Makro Bankam")
     st.write("Makro ekonomik göstergelerin analiz edileceği alan.")
+
+
+# And here we are creating the main structure of the application.
+# The sidebar is used for navigation and the main area is used for displaying the content.
+# We place the functions in the sidebar and call them based on the user's selection.
 
 # 🟥 Sidebar — Full navigation with icons
 st.sidebar.title("🔎 Navigasyon")
