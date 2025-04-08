@@ -83,6 +83,66 @@ def run_raw_data_tables():
     st.subheader("📊 Ham Veri")
     st.write("Ham verilerin gösterileceği alan.")
 
+def filtered_chart_section(df, key_prefix="chart"):
+    st.markdown("### 📋 Tablo")
+    df = df.copy()
+
+    # Filter by year
+    years = df["Yıllar"].unique()
+    selected_years = st.multiselect("Yıllara Göre Filtrele", years, default=years, key=f"{key_prefix}_years")
+    df = df[df["Yıllar"].isin(selected_years)]
+
+    # Filter by columns (excluding Yıllar)
+    all_columns = df.columns.drop("Yıllar")
+    selected_columns = st.multiselect("Değişkenleri Seçin", all_columns, default=all_columns[:3], key=f"{key_prefix}_cols")
+    filtered_df = df[["Yıllar"] + selected_columns]
+    st.dataframe(filtered_df)
+
+    # Chart builder with export
+    chart_creator_with_export(filtered_df, key_prefix=key_prefix)
+
+
+def chart_creator_with_export(df, key_prefix="chart"):
+    st.markdown("---")
+    st.markdown("### 📊 Görsel Oluştur")
+
+    if f"{key_prefix}_charts" not in st.session_state:
+        st.session_state[f"{key_prefix}_charts"] = []
+
+    with st.form(key=f"{key_prefix}_form"):
+        chart_type = st.selectbox("Grafik Türü Seçin", ["Çizgi (Line)", "Bar", "Alan (Area)", "Pasta (Pie)", "Dağılım (Scatter)"], key=f"{key_prefix}_chart_type")
+        x_col = st.selectbox("X Eksen Kolonu", df.columns, index=0, key=f"{key_prefix}_x")
+        y_col = st.selectbox("Y Eksen Kolonu", df.columns, index=1 if len(df.columns) > 1 else 0, key=f"{key_prefix}_y")
+        add_chart = st.form_submit_button("Grafiği Ekle")
+
+        if add_chart:
+            st.session_state[f"{key_prefix}_charts"].append((chart_type, x_col, y_col))
+
+    # Display and export charts
+    for idx, (chart_type, x_col, y_col) in enumerate(st.session_state[f"{key_prefix}_charts"]):
+        st.markdown(f"#### Grafik {idx+1}: {chart_type} ({x_col} vs {y_col})")
+        try:
+            if chart_type == "Çizgi (Line)":
+                fig = px.line(df, x=x_col, y=y_col)
+            elif chart_type == "Bar":
+                fig = px.bar(df, x=x_col, y=y_col)
+            elif chart_type == "Alan (Area)":
+                fig = px.area(df, x=x_col, y=y_col)
+            elif chart_type == "Pasta (Pie)":
+                fig = px.pie(df, names=x_col, values=y_col)
+            elif chart_type == "Dağılım (Scatter)":
+                fig = px.scatter(df, x=x_col, y=y_col)
+            st.plotly_chart(fig, use_container_width=True)
+
+            if st.session_state.get("reports"):
+                export_to = st.selectbox(f"Grafik {idx+1} için rapor seçin", list(st.session_state["reports"].keys()), key=f"{key_prefix}_export_{idx}")
+                if st.button(f"Grafiği '{export_to}' raporuna aktar", key=f"{key_prefix}_export_btn_{idx}"):
+                    st.session_state["reports"][export_to]["charts"].append(fig)
+                    st.success(f"Görsel '{export_to}' raporuna eklendi.")
+        except Exception as e:
+            st.warning(f"Grafik çizilirken hata oluştu: {e}")
+
+            
 def run_common_size_analysis():
     st.subheader("📈 Yüzde Analizi")
     st.write("Yüzde (common-size) analizlerinin gösterileceği alan.")
@@ -242,17 +302,19 @@ main_section = st.sidebar.radio("📂 Modül Seçin", [
 
 # 🟨 Modular Section Routing
 if main_section == "📊 Tablolarım":
-    sub_tab = st.sidebar.radio("Alt Bölüm", [
-        "Finansal Tablolar",
-        "Pivot Tablolar",
-        "Ham Veri"
-    ])
-    if sub_tab == "Finansal Tablolar":
-        run_financial_tables()
-    elif sub_tab == "Pivot Tablolar":
-        run_pivot_tables()
-    elif sub_tab == "Ham Veri":
-        run_raw_data_tables()
+
+    sub_tab = st.sidebar.radio("Alt Sekmeler", ["Bilanço", "Gelir Tablosu"])
+    st.markdown(f"#### {sub_tab}")
+
+    if sub_tab == "Bilanço":
+        df = pd.read_excel("AKBNK_balance_2.xlsx")
+        filtered_chart_section(df, key_prefix="bilanco")
+
+    elif sub_tab == "Gelir Tablosu":
+        df = pd.read_excel("AKBNK_income_2.xlsx")
+        if "Unnamed: 1" in df.columns:
+            df = df.drop(columns=["Unnamed: 1"])
+        filtered_chart_section(df, key_prefix="gelir")
 
 elif main_section == "📈 Analizlerim":
     sub_tab = st.sidebar.radio("Alt Bölüm", [
