@@ -16,6 +16,34 @@ import tempfile
 import pydeck as pdk
 import joblib
 
+
+import streamlit as st
+import pandas as pd
+import joblib
+
+from sklearn.preprocessing import LabelEncoder
+
+
+import streamlit as st
+import pandas as pd
+import joblib
+from sklearn.preprocessing import LabelEncoder
+
+
+import streamlit as st
+import pandas as pd
+import joblib
+from sklearn.preprocessing import LabelEncoder
+
+
+
+
+import streamlit as st
+import pandas as pd
+import joblib
+from sklearn.preprocessing import LabelEncoder
+
+
 # Set the page title, layout and other configurations.
 
 # Set page config
@@ -439,29 +467,223 @@ def run_report_builder():
         st.info("Henüz oluşturulmuş bir rapor yok.")
 
 
-def run_customer_segmentation():
-    st.subheader("💳 Müşteri Segmentasyonu")
-    st.write("Segmentasyon analiz alanı.")
-
 def run_credit_model_training():
     st.subheader("💳 Model Eğitimi")
     st.write("Kredi skorlama model eğitimi alanı.")
+    st.markdown("### 💳 Kredi Skorlama Formu")
 
-def run_score_prediction():
-    st.subheader("💳 Skor Tahmini")
-    st.write("Skor tahminlerinin gösterileceği alan.")
+    with st.form("credit_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            yas = st.slider("Yaş", 18, 75, 35)
+            gelir = st.number_input("Aylık Gelir (₺)", min_value=1000, value=10000, step=500)
+            kredi_gecmisi = st.selectbox("Kredi Geçmişi", ["iyi", "orta", "kötü"])
+            aktif_kredi_sayisi = st.slider("Aktif Kredi Sayısı", 0, 5, 1)
+            kredi_kart_limit_toplam = st.number_input("Toplam Kredi Kartı Limiti (₺)", min_value=1000, value=20000)
+        with col2:
+            geciken_odeme_sayisi = st.slider("Son 1 Yıldaki Geciken Ödeme Sayısı", 0, 10, 0)
+            ev_sahibi_mi = st.selectbox("Ev Sahibi misiniz?", ["Evet", "Hayır"])
+            meslek_grubu = st.selectbox("Meslek Grubu", ["memur", "ozel_sektor", "serbest", "emekli"])
+            egitim_durumu = st.selectbox("Eğitim Durumu", ["lise", "lisans", "yuksek_lisans", "doktora"])
+
+        submitted = st.form_submit_button("Skorla")
+
+    if submitted:
+        try:
+            model = joblib.load("kredi_skorlama_model.pkl")
+        except Exception as e:
+            st.error(f"Model yüklenemedi: {e}")
+            return
+
+        # Girdileri uygun formata getir
+        input_dict = {
+            "yas": yas,
+            "gelir": gelir,
+            "kredi_gecmisi": LabelEncoder().fit(["iyi", "orta", "kötü"]).transform([kredi_gecmisi])[0],
+            "aktif_kredi_sayisi": aktif_kredi_sayisi,
+            "kredi_kart_limit_toplam": kredi_kart_limit_toplam,
+            "geciken_odeme_sayisi": geciken_odeme_sayisi,
+            "ev_sahibi_mi": 1 if ev_sahibi_mi == "Evet" else 0,
+            "meslek_grubu": LabelEncoder().fit(["memur", "ozel_sektor", "serbest", "emekli"]).transform([meslek_grubu])[0],
+            "egitim_durumu": LabelEncoder().fit(["lise", "lisans", "yuksek_lisans", "doktora"]).transform([egitim_durumu])[0],
+        }
+
+        input_df = pd.DataFrame([input_dict])
+
+        try:
+            prediction = model.predict(input_df)[0]
+            risk_map = {0: "🔴 Yüksek Risk", 1: "🟡 Orta Risk", 2: "🟢 Düşük Risk"}
+            st.success(f"Tahmin Edilen Kredi Riski: **{risk_map[prediction]}**")
+        except Exception as e:
+            st.error(f"Tahmin sırasında hata oluştu: {e}")
+
 
 def run_fraud_detection():
     st.subheader("🚨 Fraud")
     st.write("Fraud (anomalili işlem) analizlerinin yapılacağı alan.")
+    st.markdown("### 🚨 Fraud (Dolandırıcılık) Tespiti")
+
+    with st.form("fraud_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            islem_tutari = st.number_input("İşlem Tutarı (₺)", min_value=1, value=1000)
+            saat = st.slider("İşlem Saati", 0, 23, 14)
+            islem_tipi = st.selectbox("İşlem Tipi", ["e_ticaret", "atm", "pos", "eft"])
+            bir_gunde_islem_sayisi = st.slider("Aynı Gün İçinde Yapılan İşlem Sayısı", 1, 50, 3)
+            aylik_ortalama_tutar = st.number_input("Aylık Ortalama İşlem Tutarı (₺)", min_value=0, value=5000)
+        with col2:
+            lokasyon_uyusmazligi = st.selectbox("Lokasyon Uyumsuzluğu", ["Hayır", "Evet"])
+            cihaz_id_yeni_mi = st.selectbox("Yeni Cihaz mı?", ["Hayır", "Evet"])
+            uzak_ulke_mi = st.selectbox("İşlem Yurt Dışından mı?", ["Hayır", "Evet"])
+            vpn_kullanimi = st.selectbox("VPN Kullanılmış mı?", ["Hayır", "Evet"])
+
+        submitted = st.form_submit_button("İşlemi Değerlendir")
+
+    if submitted:
+        try:
+            model = joblib.load("fraud_detection_model.pkl")
+        except Exception as e:
+            st.error(f"Model yüklenemedi: {e}")
+            return
+
+        # Label encode işlemi türü
+        islem_tipi_encoded = LabelEncoder().fit(["e_ticaret", "atm", "pos", "eft"]).transform([islem_tipi])[0]
+
+        input_dict = {
+            "islem_tutari": islem_tutari,
+            "saat": saat,
+            "islem_tipi": islem_tipi_encoded,
+            "lokasyon_uyusmazligi": 1 if lokasyon_uyusmazligi == "Evet" else 0,
+            "cihaz_id_yeni_mi": 1 if cihaz_id_yeni_mi == "Evet" else 0,
+            "bir_gunde_islem_sayisi": bir_gunde_islem_sayisi,
+            "aylik_ortalama_tutar": aylik_ortalama_tutar,
+            "uzak_ulke_mi": 1 if uzak_ulke_mi == "Evet" else 0,
+            "vpn_kullanimi": 1 if vpn_kullanimi == "Evet" else 0,
+        }
+
+        input_df = pd.DataFrame([input_dict])
+
+        try:
+            prediction = model.predict(input_df)[0]
+            if prediction == 1:
+                st.error("🚨 Bu işlem dolandırıcılık (fraud) olarak değerlendirilmiştir!")
+            else:
+                st.success("✅ Bu işlem normal görünmektedir.")
+        except Exception as e:
+            st.error(f"Tahmin sırasında hata oluştu: {e}")
+
 
 def run_product_matcher():
     st.subheader("🎯 Ürün Bul")
     st.write("Ürün eşleştirme algoritmalarının uygulanacağı alan.")
+    st.markdown("### 🎯 Banka Ürünü Önerme")
+
+    with st.form("product_recommender_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            yas = st.slider("Yaş", 18, 80, 35)
+            gelir = st.number_input("Aylık Gelir (₺)", min_value=1000, value=10000, step=500)
+            mevcut_urun_sayisi = st.slider("Mevcut Banka Ürün Sayısı", 0, 5, 1)
+            yillik_islem_sayisi = st.slider("Yıllık İşlem Sayısı", 0, 100, 20)
+        with col2:
+            ortalama_bakiye = st.number_input("Ortalama Hesap Bakiyesi (₺)", min_value=0, value=50000)
+            yatirim_tecrubesi = st.selectbox("Yatırım Tecrübesi", ["hic", "az", "orta", "ileri"])
+            risk_toleransi = st.selectbox("Risk Toleransı", ["dusuk", "orta", "yuksek"])
+            digital_kullanim_sikligi = st.slider("Haftalık Mobil Giriş Sayısı", 0, 20, 5)
+
+        submitted = st.form_submit_button("Ürün Öner")
+
+    if submitted:
+        try:
+            scaler, kmeans = joblib.load("urun_oneri_model.pkl")
+        except Exception as e:
+            st.error(f"Model yüklenemedi: {e}")
+            return
+
+        # Kategorikleri encode et
+        yatirim_map = {"hic": 0, "az": 1, "orta": 2, "ileri": 3}
+        risk_map = {"dusuk": 0, "orta": 1, "yuksek": 2}
+
+        input_dict = {
+            "yas": yas,
+            "gelir": gelir,
+            "mevcut_urun_sayisi": mevcut_urun_sayisi,
+            "yillik_islem_sayisi": yillik_islem_sayisi,
+            "ortalama_bakiye": ortalama_bakiye,
+            "yatirim_tecrubesi": yatirim_map[yatirim_tecrubesi],
+            "risk_toleransi": risk_map[risk_toleransi],
+            "digital_kullanim_sikligi": digital_kullanim_sikligi,
+        }
+
+        input_df = pd.DataFrame([input_dict])
+
+        try:
+            input_scaled = scaler.transform(input_df)
+            segment = kmeans.predict(input_scaled)[0]
+
+            # Segmentlere göre önerilen ürünler
+            urun_map = {
+                0: "💳 Kredi",
+                1: "📈 Fon Yatırımı",
+                2: "🏦 Vadeli Mevduat"
+            }
+            st.success(f"Önerilen Banka Ürünü: **{urun_map.get(segment, 'Ürün Yok')}** (Segment {segment})")
+        except Exception as e:
+            st.error(f"Tahmin sırasında hata oluştu: {e}")
+
 
 def run_housing_valuation():
     st.subheader("🏘️ Konut Fiyatlama")
     st.write("Konut fiyat tahmin modellerinin gösterileceği alan.")
+    st.markdown("### 🏘️ Konut Fiyatlama Formu")
+
+    with st.form("housing_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            metrekare = st.slider("Metrekare", 30, 300, 90)
+            oda_sayisi = st.selectbox("Oda Sayısı", ["1+0", "1+1", "2+1", "3+1", "4+1"])
+            bina_yasi = st.slider("Bina Yaşı", 0, 40, 10)
+            bulundugu_kat = st.slider("Bulunduğu Kat", 0, 20, 2)
+            toplam_kat = st.slider("Toplam Kat Sayısı", 1, 25, 5)
+        with col2:
+            ilce = st.selectbox("İlçe", ["Beşiktaş", "Kadıköy", "Çankaya", "Atakum"])
+            ulasim_yakinligi = st.slider("Ulaşım Yakınlığı (0-1)", 0.0, 1.0, 0.5, step=0.05)
+            okul_saglik_skoru = st.slider("Okul ve Sağlık Yakınlığı (0-1)", 0.0, 1.0, 0.5, step=0.05)
+            site_icinde_mi = st.selectbox("Site İçinde mi?", ["Evet", "Hayır"])
+
+        submitted = st.form_submit_button("Değerle")
+
+    if submitted:
+        try:
+            model = joblib.load("konut_fiyatlama_model.pkl")
+        except Exception as e:
+            st.error(f"Model yüklenemedi: {e}")
+            return
+
+        # Encode işlemleri
+        oda_sayisi_encoder = LabelEncoder().fit(["1+0", "1+1", "2+1", "3+1", "4+1"])
+        ilce_encoder = LabelEncoder().fit(["Beşiktaş", "Kadıköy", "Çankaya", "Atakum"])
+
+        input_dict = {
+            "metrekare": metrekare,
+            "oda_sayisi": oda_sayisi_encoder.transform([oda_sayisi])[0],
+            "bina_yasi": bina_yasi,
+            "bulundugu_kat": bulundugu_kat,
+            "toplam_kat": toplam_kat,
+            "ilce": ilce_encoder.transform([ilce])[0],
+            "ulasim_yakinligi": ulasim_yakinligi,
+            "okul_saglik_skoru": okul_saglik_skoru,
+            "site_icinde_mi": 1 if site_icinde_mi == "Evet" else 0,
+        }
+
+        input_df = pd.DataFrame([input_dict])
+
+        try:
+            prediction = model.predict(input_df)[0]
+            st.success(f"🏷️ Tahmini Konut Değeri: **{int(prediction):,} TL**")
+        except Exception as e:
+            st.error(f"Tahmin sırasında hata oluştu: {e}")
+
 
 def run_akbilmis_ai_assistant():
     st.subheader("🤖 AK Bilmiş")
@@ -523,18 +745,8 @@ elif main_section == "📝 Raporum":
     run_report_builder()
 
 elif main_section == "💳 Kredi Skorlama":
-    sub_tab = st.sidebar.radio("Alt Bölüm", [
-        "Müşteri Segmentasyonu",
-        "Model Eğitimi",
-        "Skor Tahmini"
-    ])
-    if sub_tab == "Müşteri Segmentasyonu":
-        run_customer_segmentation()
-    elif sub_tab == "Model Eğitimi":
-        run_credit_model_training()
-    elif sub_tab == "Skor Tahmini":
-        run_score_prediction()
-
+    run_credit_model_training()
+    
 elif main_section == "🚨 Fraud":
     run_fraud_detection()
 
