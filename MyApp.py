@@ -15,34 +15,7 @@ from bs4 import BeautifulSoup
 import tempfile
 import pydeck as pdk
 import joblib
-
-
-import streamlit as st
-import pandas as pd
-import joblib
-
 from sklearn.preprocessing import LabelEncoder
-
-
-import streamlit as st
-import pandas as pd
-import joblib
-from sklearn.preprocessing import LabelEncoder
-
-
-import streamlit as st
-import pandas as pd
-import joblib
-from sklearn.preprocessing import LabelEncoder
-
-
-
-
-import streamlit as st
-import pandas as pd
-import joblib
-from sklearn.preprocessing import LabelEncoder
-
 
 # Set the page title, layout and other configurations.
 
@@ -707,9 +680,9 @@ main_section = st.sidebar.radio("📂 Modül Seçin", [
     "💳 Kredi Skorlama",
     "🚨 Fraud",
     "🎯 Ürün Bul",
-    "🏘️ Konut Fiyatlama",
-    "🤖 AK Bilmiş",
-    "📉 Makro Bankam"
+    "🏘️ Konut Fiyatlama"#,
+    # "🤖 AK Bilmiş",
+    # "📉 Makro Bankam"
 ])
 
 # 🟨 Modular Section Routing

@@ -2,6 +2,7 @@ streamlit
 Pillow
 pandas
 numpy
+scikit-learn
 plotly
 fpdf
 markdown2
