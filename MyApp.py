@@ -146,14 +146,204 @@ def chart_creator_with_export(df, key_prefix="chart"):
 def run_common_size_analysis():
     st.subheader("📈 Yüzde Analizi")
     st.write("Yüzde (common-size) analizlerinin gösterileceği alan.")
+    st.markdown("## 📊 Yüzde Yöntemi ile Analiz (Common-Size Analysis)")
+
+    # Load both datasets
+    df_bilanco = pd.read_excel("AKBNK_balance_2.xlsx", index_col=0)
+    df_gelir = pd.read_excel("AKBNK_income_2.xlsx", index_col=0)
+    if "Unnamed: 1" in df_gelir.columns:
+        df_gelir = df_gelir.drop(columns=["Unnamed: 1"])
+
+    # ----------- BİLANÇO ANALİZİ -----------
+    st.markdown("### 📘 Bilanço")
+    bilanco_columns = df_bilanco.columns.tolist()
+
+    selected_cols_bilanco = st.multiselect(
+        "Görüntülenecek Yıllar (Bilanço)",
+        bilanco_columns,
+        default=bilanco_columns,
+        key="bilanco_years"
+    )
+
+    if selected_cols_bilanco:
+        base_column_bilanco = st.selectbox(
+            "Baz Alınacak Yıl (Bilanço)",
+            selected_cols_bilanco,
+            key="bilanco_base"
+        )
+
+        df_bilanco_view = df_bilanco[selected_cols_bilanco]
+        df_bilanco_common = df_bilanco_view.divide(df_bilanco_view[base_column_bilanco], axis=0) * 100
+        st.dataframe(df_bilanco_common.style.format("{:.2f} %"))
+
+    st.markdown("---")
+
+    # ----------- GELİR TABLOSU ANALİZİ -----------
+    st.markdown("### 📙 Gelir Tablosu")
+    gelir_columns = df_gelir.columns.tolist()
+
+    selected_cols_gelir = st.multiselect(
+        "Görüntülenecek Yıllar (Gelir Tablosu)",
+        gelir_columns,
+        default=gelir_columns,
+        key="gelir_years"
+    )
+
+    if selected_cols_gelir:
+        base_column_gelir = st.selectbox(
+            "Baz Alınacak Yıl (Gelir Tablosu)",
+            selected_cols_gelir,
+            key="gelir_base"
+        )
+
+        df_gelir_view = df_gelir[selected_cols_gelir]
+        df_gelir_common = df_gelir_view.divide(df_gelir_view[base_column_gelir], axis=0) * 100
+        st.dataframe(df_gelir_common.style.format("{:.2f} %"))
+
 
 def run_trend_analysis():
     st.subheader("📈 Trend Analizi")
     st.write("Trend analizlerinin gösterileceği alan.")
+    st.markdown("## 📈 Trend Analizi (Yatay Yüzde Değişim)")
+
+    # ---- BİLANÇO TREND ANALİZİ ----
+    # Load balance sheet data (assumes first column is "Yıllar")
+    df_bilanco = pd.read_excel("AKBNK_balance_2.xlsx")
+    # Pivot: set "Yıllar" as index and then transpose so that rows = financial items, columns = years.
+    df_bilanco_pivot = df_bilanco.set_index("Yıllar").T
+
+    # Get the list of available years (now from the columns)
+    bilanco_years = df_bilanco_pivot.columns.tolist()
+    selected_bilanco_years = st.multiselect(
+        "Görüntülenecek Yıllar (Bilanço)",
+        bilanco_years,
+        default=bilanco_years,
+        key="trend_bilanco_years"
+    )
+
+    if selected_bilanco_years:
+        base_year_bilanco = st.selectbox(
+            "Baz Yıl (Bilanço)",
+            selected_bilanco_years,
+            key="trend_bilanco_base"
+        )
+
+        # Work on the selected columns
+        df_bilanco_selected = df_bilanco_pivot[selected_bilanco_years].copy()
+        df_bilanco_trend = df_bilanco_selected.copy()
+
+        # For each financial item (row), compute the trend relative to the base year
+        for idx in df_bilanco_trend.index:
+            base_val = df_bilanco_selected.loc[idx, base_year_bilanco]
+            if base_val != 0:
+                df_bilanco_trend.loc[idx] = (df_bilanco_selected.loc[idx] / base_val) * 100
+            else:
+                df_bilanco_trend.loc[idx] = 0
+
+        st.dataframe(df_bilanco_trend.style.format("{:.2f} %"))
+
+    st.markdown("---")
+
+    # ---- GELİR TABLOSU TREND ANALİZİ ----
+    df_gelir = pd.read_excel("AKBNK_income_2.xlsx")
+    # Drop unnecessary column if exists
+    if "Unnamed: 1" in df_gelir.columns:
+        df_gelir = df_gelir.drop(columns=["Unnamed: 1"])
+    df_gelir_pivot = df_gelir.set_index("Yıllar").T
+
+    gelir_years = df_gelir_pivot.columns.tolist()
+    selected_gelir_years = st.multiselect(
+        "Görüntülenecek Yıllar (Gelir Tablosu)",
+        gelir_years,
+        default=gelir_years,
+        key="trend_gelir_years"
+    )
+
+    if selected_gelir_years:
+        base_year_gelir = st.selectbox(
+            "Baz Yıl (Gelir Tablosu)",
+            selected_gelir_years,
+            key="trend_gelir_base"
+        )
+
+        df_gelir_selected = df_gelir_pivot[selected_gelir_years].copy()
+        df_gelir_trend = df_gelir_selected.copy()
+
+        for idx in df_gelir_trend.index:
+            base_val = df_gelir_selected.loc[idx, base_year_gelir]
+            if base_val != 0:
+                df_gelir_trend.loc[idx] = (df_gelir_selected.loc[idx] / base_val) * 100
+            else:
+                df_gelir_trend.loc[idx] = 0
+
+        st.dataframe(df_gelir_trend.style.format("{:.2f} %"))
+
+
 
 def run_ratio_analysis_dashboard():
     st.subheader("📈 Rasyo Analizi")
     st.write("Rasyo analizlerinin gösterileceği alan.")
+    st.markdown("### 🔑 Finansal Rasyolar")
+
+    
+    # Read Excel files
+    df = pd.read_excel("AKBNK_balance_2.xlsx")
+    df2 = pd.read_excel("AKBNK_income_2.xlsx")
+
+    # Clean column names by stripping whitespace
+    df.columns = df.columns.str.strip()
+    df2.columns = df2.columns.str.strip()
+
+    # Drop unnecessary column if exists
+    if "Unnamed: 1" in df2.columns:
+        df2 = df2.drop(columns=["Unnamed: 1"])
+
+    # --- Compute ratios ---
+    df["Faktoring/Maddi"] = df["Faktoring Alacakları"] / df["MADDİ DURAN VARLIKLAR (Net)"]
+    df["Krediler/Finansal"] = df["KREDİLER (Net)"] / df["Finansal Varlıklar (Net)"]
+    df["Nakit/Krediler"] = df["Nakit ve Nakit Benzerleri"] / df["KREDİLER (Net)"]
+
+    latest = df.iloc[-1]
+    previous = df.iloc[-2]
+
+    # --- KPI Metrics ---
+    col1, col2, col3 = st.columns(3)
+    col1.metric(
+        "Faktoring / Maddi Duran Varlıklar",
+        f"{latest['Faktoring/Maddi']:.2f}",
+        f"{latest['Faktoring/Maddi'] - previous['Faktoring/Maddi']:+.2f}"
+    )
+    col2.metric(
+        "Krediler / Finansal Varlıklar",
+        f"{latest['Krediler/Finansal']:.2f}",
+        f"{latest['Krediler/Finansal'] - previous['Krediler/Finansal']:+.2f}"
+    )
+    col3.metric(
+        "Nakit / Krediler",
+        f"{latest['Nakit/Krediler']:.2f}",
+        f"{latest['Nakit/Krediler'] - previous['Nakit/Krediler']:+.2f}"
+    )
+
+    # --- Ratio Charts Side-by-Side ---
+    st.markdown("### 📈 Zaman İçindeki Değişim")
+    chart_col1, chart_col2 = st.columns(2)
+
+    with chart_col1:
+        st.plotly_chart(px.line(df, x="Yıllar", y="Faktoring/Maddi", title="Faktoring / Maddi Duran Varlıklar"), use_container_width=True)
+
+    with chart_col2:
+        st.plotly_chart(px.line(df, x="Yıllar", y="Krediler/Finansal", title="Krediler / Finansal Varlıklar"), use_container_width=True)
+
+    st.plotly_chart(px.line(df, x="Yıllar", y="Nakit/Krediler", title="Nakit / Krediler"), use_container_width=True)
+
+    # --- Data Table ---
+    st.markdown("### 📊 Tüm Rasyo Verileri")
+    st.dataframe(df[["Yıllar", "Faktoring/Maddi", "Krediler/Finansal", "Nakit/Krediler"]].style.format({
+        "Faktoring/Maddi": "{:.2f}",
+        "Krediler/Finansal": "{:.2f}",
+        "Nakit/Krediler": "{:.2f}"
+    }))
+
     
 # 📝 Report builder module (modularized)
 def run_report_builder():
