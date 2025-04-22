@@ -1,0 +1,24 @@
+🔎 Random Forest Report:
+Accuracy: 0.8570
+AUC: 0.8299
+              precision    recall  f1-score   support
+
+           0       0.87      0.96      0.92      1607
+           1       0.74      0.42      0.54       393
+
+    accuracy                           0.86      2000
+   macro avg       0.80      0.69      0.73      2000
+weighted avg       0.85      0.86      0.84      2000
+
+
+🔍 Logistic Regression Report:
+Accuracy: 0.8095
+AUC: 0.7565
+              precision    recall  f1-score   support
+
+           0       0.82      0.97      0.89      1607
+           1       0.56      0.15      0.24       393
+
+    accuracy                           0.81      2000
+   macro avg       0.69      0.56      0.57      2000
+weighted avg       0.77      0.81      0.76      2000

@@ -15,7 +15,15 @@ from bs4 import BeautifulSoup
 import tempfile
 import pydeck as pdk
 import joblib
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder , StandardScaler
+import seaborn as sns
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+
+
+
+
 
 # Set the page title, layout and other configurations.
 
@@ -667,6 +675,146 @@ def run_macro_dashboard():
     st.write("Makro ekonomik göstergelerin analiz edileceği alan.")
 
 
+
+def filtered_customer_table_section(key_prefix="cust"):
+    # Veriyi yükle
+    df = pd.read_csv("Processed_Customer_Data.csv")
+    st.markdown("### 📋 Müşteri Verisi Önizleme")
+    df = df.copy()
+
+    # Satır sayısı seçimi
+    row_limit = st.slider("Gösterilecek Satır Sayısı", min_value=5, max_value=50, value=10, key=f"{key_prefix}_rows")
+
+    # Sütun seçimi (sadece gösterim için)
+    all_columns = df.columns.tolist()
+    default_cols = all_columns[:4]
+    selected_columns = st.multiselect("Görüntülenecek Değişkenler", all_columns, default=default_cols, key=f"{key_prefix}_cols")
+
+    # Filtrelenmiş veri gösterimi
+    filtered_df = df[selected_columns].head(row_limit)
+    st.dataframe(filtered_df, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("🔍 Kümelenme Ayarları")
+
+    # Nümerik sütunları seçme
+    numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+
+    # Kümelenme için değişken seçimi (yalnızca nümerik değişkenler)
+    clustering_vars = st.multiselect("Kümelenme için kullanılacak değişken(ler)", numeric_columns, key=f"{key_prefix}_cluster_vars")
+
+    # Küme sayısı seçimi
+    n_clusters = st.number_input("Küme Sayısı", min_value=2, max_value=10, value=3, step=1, key=f"{key_prefix}_n_clusters")
+
+    # Eğer değişkenler seçilmişse ve kümeleme yapılacaksa
+    if clustering_vars:
+        cluster_data = df[clustering_vars].dropna()  # Eksik değerleri temizle
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(cluster_data)
+
+        # KMeans modeli
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        kmeans.fit(scaled_data)
+        df['Cluster'] = kmeans.labels_  # Kümeleri veri setine ekle
+
+        # Kümeleme görselleştirmesi (PCA ile 2D görselleştirme)
+        pca = PCA(n_components=2)
+        pca_components = pca.fit_transform(scaled_data)
+
+        # Görselleştirme
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x=pca_components[:, 0], y=pca_components[:, 1], hue=df['Cluster'], palette='viridis', s=100, alpha=0.7)
+        plt.title(f'Kümeleme Sonuçları: {n_clusters} Küme', fontsize=16)
+        plt.xlabel('PCA 1')
+        plt.ylabel('PCA 2')
+        st.pyplot(plt)
+
+        st.success(f"KMeans kümeleme başarıyla {n_clusters} küme ile oluşturuldu.")
+
+        # Küme numarası seçimi
+        selected_cluster = st.number_input("Filtrelemek İçin Küme Seçin", min_value=0, max_value=n_clusters-1, value=0, step=1, key=f"{key_prefix}_selected_cluster")
+
+        # Seçilen kümeye göre veri filtresi
+        cluster_filtered_df = df[df['Cluster'] == selected_cluster]
+
+        st.markdown("### 📋 Filtrelenmiş Küme Verisi")
+        row_limit_filtered = st.slider("Filtrelenmiş Küme İçin Gösterilecek Satır Sayısı", min_value=5, max_value=50, value=10, key=f"{key_prefix}_filtered_rows")
+
+        # Filtrelenmiş veri gösterimi
+        filtered_columns = st.multiselect("Görüntülenecek Değişkenler", df.columns.tolist(), default=all_columns[:4], key=f"{key_prefix}_filtered_cols")
+        filtered_df = cluster_filtered_df[filtered_columns].head(row_limit_filtered)
+        st.dataframe(filtered_df, use_container_width=True)
+
+    else:
+        st.info("Lütfen kümelenme için en az bir değişken seçin.")
+
+
+
+def run_churn_prediction():
+    st.header("📉 Müşteri Kaybı (Churn) Tahmini")
+
+    st.markdown("Aşağıdaki formu doldurarak bir müşterinin kayıp olma olasılığını tahmin edebilirsiniz.")
+
+    with st.form("churn_form"):
+        st.subheader("🎛️ Müşteri Bilgileri")
+
+        kredi_notu = st.slider("Kredi Notu", 300, 900, 600)
+        yaş = st.slider("Yaş", 18, 100, 35)
+        kıdem = st.slider("Kıdem (yıl)", 0, 20, 5)
+        bakiye = st.number_input("Bakiye", value=50000.0)
+        ürün_sayısı = st.selectbox("Ürün Sayısı", [1, 2, 3, 4])
+        kredi_karti = st.radio("Kredi Kartı Var mı?", ["Evet", "Hayır"])
+        aktif_musteri = st.radio("Aktif Müşteri mi?", ["Evet", "Hayır"])
+        tahmini_maas = st.number_input("Tahmini Maaş", value=100000.0)
+        # ülke = st.selectbox("Ülke", ["Fransa", "İspanya", "Almanya"])
+        # cinsiyet = st.radio("Cinsiyet", ["Erkek", "Kadın"])
+
+        st.markdown("#### 🔍 Model Seçimi")
+        model_secimi = st.selectbox("Kullanılacak Model", ["Random Forest", "Logistic Regression"])
+
+        submitted = st.form_submit_button("Tahmin Et")
+
+    if submitted:
+        # 🧾 Giriş verisini hazırlama
+        input_data = {
+            "kredi_notu": kredi_notu,
+            "yaş": yaş,
+            "kıdem": kıdem,
+            "bakiye": bakiye,
+            "ürün_sayısı": ürün_sayısı,
+            "kredi_karti_var_mi": 1 if kredi_karti == "Evet" else 0,
+            "aktif_müsteri_mi": 1 if aktif_musteri == "Evet" else 0,
+            "tahmini_maas": tahmini_maas,
+            # "ülke_Almanya": 1 if ülke == "Almanya" else 0,
+            # "ülke_İspanya": 1 if ülke == "İspanya" else 0,
+            # "cinsiyet": 1 if cinsiyet == "Kadın" else 0
+        }
+
+        input_df = pd.DataFrame([input_data])
+
+        # 🧠 Skaler ve model yükle
+        scaler = joblib.load("churn_model_outputs/scaler.pkl")
+
+        if model_secimi == "Random Forest":
+            model = joblib.load("churn_model_outputs/random_forest_model.pkl")
+        else:
+            model = joblib.load("churn_model_outputs/logistic_regression_model.pkl")
+
+        # 🧮 Ölçeklendirme + tahmin
+        scaled_input = scaler.transform(input_df)
+        prediction = model.predict(scaled_input)[0]
+        probability = model.predict_proba(scaled_input)[0][1]
+
+        # 🖼️ Çıktı
+        st.markdown("## 🔎 Tahmin Sonucu")
+        st.write(f"Bu müşterinin kayıp olma olasılığı: **{probability:.2%}**")
+
+        if prediction == 1:
+            st.error("⚠️ Müşteri kaybı riski VAR!")
+        else:
+            st.success("✅ Müşteri kaybı riski DÜŞÜK.")
+
+
 # And here we are creating the main structure of the application.
 # The sidebar is used for navigation and the main area is used for displaying the content.
 # We place the functions in the sidebar and call them based on the user's selection.
@@ -680,9 +828,11 @@ main_section = st.sidebar.radio("📂 Modül Seçin", [
     "💳 Kredi Skorlama",
     "🚨 Fraud",
     "🎯 Ürün Bul",
-    "🏘️ Konut Fiyatlama"#,
+    "🏘️ Konut Fiyatlama",#,
     # "🤖 AK Bilmiş",
-    # "📉 Makro Bankam"
+    # "📉 Makro Bankam",
+    "💬 Müşteri İlişkileri",
+    "📉 Müşteri Kaybı"
 ])
 
 # 🟨 Modular Section Routing
@@ -735,4 +885,23 @@ elif main_section == "🤖 AK Bilmiş":
 elif main_section == "📉 Makro Bankam":
     run_macro_dashboard()
 
+# elif main_section == "Müşteri İlişkileri":
+#     sub_tab = st.sidebar.radio("Alt Bölüm", [
+#         "K-Küme",
+#         "RFM"
+#     ])
+#     if sub_tab == "K-Küme":
+#         run_customer_segmentation_kmeans()
+    # elif sub_tab == "RFM":
+    #     run_customer_segmentation_rfm()
+    
+# elif main_section == "Müşteri İlişkileri":
+#     sub_tab = st.sidebar.radio("Alt Bölüm", ["K-Küme", "RFM"])
+#     if sub_tab == "K-Küme":
+        
 
+elif main_section == "💬 Müşteri İlişkileri":
+    filtered_customer_table_section()
+
+elif main_section == "📉 Müşteri Kaybı":
+    run_churn_prediction()
