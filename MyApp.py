@@ -707,7 +707,9 @@ def filtered_customer_table_section(key_prefix="cust"):
     n_clusters = st.number_input("Küme Sayısı", min_value=2, max_value=10, value=3, step=1, key=f"{key_prefix}_n_clusters")
 
     # Eğer değişkenler seçilmişse ve kümeleme yapılacaksa
-    if clustering_vars:
+    # if clustering_vars:
+    # Butonla işlem tetikleme
+    if st.button("🔄 Küme Oluştur", key=f"{key_prefix}_create_clusters") and clustering_vars:
         cluster_data = df[clustering_vars].dropna()  # Eksik değerleri temizle
         scaler = StandardScaler()
         scaled_data = scaler.fit_transform(cluster_data)
